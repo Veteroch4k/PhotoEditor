@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 
 namespace Laba4
+ // азербайджанцы тут
 {
     public partial class MainWindow : Window
     {
