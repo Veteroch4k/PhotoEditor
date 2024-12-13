@@ -1,0 +1,122 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="Laba4.MainWindow"
+        Title="Photo Viewer"
+        Width="1302"
+        Height="704"
+        Background="#A9A9A9">
+
+	<Grid RowDefinitions="*,Auto" ColumnDefinitions="*">
+
+		<!-- Область для изображения -->
+		<Border Grid.Row="0"
+                Margin="10"
+                BorderThickness="2"
+                BorderBrush="#A9A9A9"
+                Background="White">
+			<Image x:Name="picBox"
+                   Stretch="Uniform" />
+		</Border>
+
+		<!-- Нижняя панель с кнопками -->
+		<Border Grid.Row="1"
+                Background="#A9A9A9"
+                Padding="10,5"
+                BorderThickness="0"
+                BorderBrush="#A9A9A9">
+			<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
+
+				<!-- Кнопки открытия/сохранения -->
+				<Button x:Name="InkOpenFile"
+                        Content="Open Image File"
+                        Background="#F0F0F0"
+                        Foreground="Black"
+                        Padding="10,5" />
+
+				<Button x:Name="InkSaveImage"
+                        Content="Save"
+                        Background="#F0F0F0"
+                        Foreground="Black"
+                        Padding="10,5" />
+
+				<!-- Зум -->
+				<TextBlock Text="Zoom"
+                           Foreground="White"
+                           VerticalAlignment="Center" />
+
+				<Button x:Name="InkZoomIn"
+                        Content="+"
+                        Background="#F0F0F0"
+                        Foreground="Black"
+                        Padding="10,5" />
+
+				<Button x:Name="InkZoomOut"
+                        Content="-"
+                        Background="#F0F0F0"
+                        Foreground="Black"
+                        Padding="10,5" />
+
+				<!-- Поворот -->
+				<TextBlock Text="Rotate"
+                           Foreground="White"
+                           VerticalAlignment="Center" />
+
+				<Button x:Name="InkRotateLeft"
+                        Content="⟲"
+                        Background="#F0F0F0"
+                        Foreground="Black"
+                        Padding="10,5" />
+
+				<Button x:Name="InkRotateRight"
+                        Content="⟳"
+                        Background="#F0F0F0"
+                        Foreground="Black"
+                        Padding="10,5" />
+
+				<!-- Выделение и обрезка -->
+				<Button x:Name="InkSelectArea"
+                        Content="Select"
+                        Background="#F0F0F0"
+                        Foreground="Black"
+                        Padding="10,5" />
+
+				<Button x:Name="InkCrop"
+                        Content="Crop"
+                        Background="#F0F0F0"
+                        Foreground="Black"
+                        Padding="10,5" />
+
+				<!-- Остальные кнопки -->
+				<Button x:Name="InkAddText"
+                        Content="Add text"
+                        Background="#F0F0F0"
+                        Foreground="Black"
+                        Padding="10,5" />
+
+				<Button x:Name="InkPaint"
+                        Content="Paint"
+                        Background="#F0F0F0"
+                        Foreground="Black"
+                        Padding="10,5" />
+
+				<Button x:Name="InkComposition"
+                        Content="Arrange a composition"
+                        Background="#F0F0F0"
+                        Foreground="Black"
+                        Padding="10,5" />
+
+				<Button x:Name="InkFilters"
+                        Content="Filters"
+                        Background="#F0F0F0"
+                        Foreground="Black"
+                        Padding="10,5" />
+			</StackPanel>
+		</Border>
+	</Grid>
+	
+</Window>
+
+
