@@ -2,14 +2,15 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using System;
 using System.IO;
-using System.Linq;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Laba4
- // азербайджанцы тут
+// азербайджанцы тут
 {
     public partial class MainWindow : Window
     {
@@ -17,8 +18,9 @@ namespace Laba4
         private int angle = 0;
 
         int crpX, crpY, rectW, rectH;
+        double scale = 1;
         private bool isSelecting = false;
-
+        private bool isAddingTextBox = false; // флаг, указывающий, идет ли добавление TextBox
         public MainWindow()
         {
             InitializeComponent();
@@ -39,6 +41,9 @@ namespace Laba4
             InkFilters.Click += InkFilters_Click;
             InkZoomIn.Click += InkZoomIn_Click;
             InkZoomOut.Click += InkZoomOut_Click;
+
+            mainCanvas.Width = picBox.Width;
+            mainCanvas.Height = picBox.Height;
         }
 
         private async void InkOpenFile_Click(object? sender, RoutedEventArgs e)
@@ -198,9 +203,65 @@ namespace Laba4
             return rotated;
         }
 
+
+        private void MainCanvas_PointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (isAddingTextBox)
+            {
+                var clickPoint = e.GetPosition(mainCanvas);
+                CreateTextBox(clickPoint);
+                isAddingTextBox = false;
+            }
+        }
+
+        private void CreateTextBox(Point position)
+        {
+            var textBox = new TextBox
+            {
+                Text = "",
+                Width = 100,
+                Height = 30,
+                Background = Brushes.Transparent,
+                BorderBrush = Brushes.Transparent,
+                BorderThickness = new Thickness(1)
+            };
+
+
+            Canvas.SetLeft(textBox, position.X);
+            Canvas.SetTop(textBox, position.Y);
+
+            mainCanvas.Children.Add(textBox);
+        }
+
+
+
         private void InkAddText_Click(object? sender, RoutedEventArgs e)
         {
-            // Требуется использование сторонних инструментов (SkiaSharp) для рендеринга текста на изображении.
+            //isAddingTextBox = true;
+
+            //int width = originalImage.PixelSize.Width;
+            //int height = originalImage.PixelSize.Height;
+
+            ////Создаем новый Bitmap, и рисуем на нем и старое изображение и текст
+            //var newImage = new RenderTargetBitmap(new PixelSize(width, height), new Vector(96, 96));
+
+            //DrawingVisual drawingVisual = new DrawingVisual();
+            //DrawingContext drawingContext = drawingVisual.RenderOpen();
+
+            //using (DrawingContext context = d())
+            //{
+            //    context.DrawImage(originalImage, new Rect(0, 0, width, height));
+
+            //    //Настраиваем шрифты и кисть
+            //    var font = new Font(FontFamily.Default, 16);
+            //    var brush = Brushes.Black;
+
+            //    //Рисуем текст
+            //    context.DrawText(brush, new Point(10, 10), , font);
+            //}
+            ////Устанавливаем новое изображение на Image element
+            //picBox.Source = newImage;
+
         }
 
         private void InkPaint_Click(object? sender, RoutedEventArgs e)
@@ -221,13 +282,20 @@ namespace Laba4
         private void InkZoomIn_Click(object? sender, RoutedEventArgs e)
         {
             // Пример: изменить масштаб через RenderTransform (нужно задать TransformOrigin и т.д.)
-            // picBox.RenderTransform = new ScaleTransform(2,2);
+            scale += 0.1;
+            picBox.RenderTransform = new ScaleTransform(scale, scale);
         }
 
         private void InkZoomOut_Click(object? sender, RoutedEventArgs e)
         {
             // Аналогично InkZoomIn, но уменьшение
-            // picBox.RenderTransform = new ScaleTransform(0.5,0.5);
+            if (scale >= 0.5)
+            {
+                scale -= 0.1;
+                picBox.RenderTransform = new ScaleTransform(scale, scale);
+            }
+            else { return; }
+            
         }
 
         private void PicBox_PointerPressed(object? sender, PointerPressedEventArgs e)

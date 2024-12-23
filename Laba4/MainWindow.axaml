@@ -17,8 +17,10 @@
                 BorderThickness="2"
                 BorderBrush="#A9A9A9"
                 Background="White">
-			<Image x:Name="picBox"
-                   Stretch="Uniform" />
+			<Canvas x:Name="mainCanvas" PointerPressed="MainCanvas_PointerPressed">
+				<Image x:Name="picBox" Stretch="Uniform" />	
+			</Canvas>
+
 		</Border>
 
 		<!-- Нижняя панель с кнопками -->
