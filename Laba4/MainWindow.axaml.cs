@@ -1,33 +1,43 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using System;
 using System.IO;
-using static System.Net.Mime.MediaTypeNames;
+using System.Linq;
 
 namespace Laba4
-// азербайджанцы тут
 {
     public partial class MainWindow : Window
     {
         private Bitmap originalImage;
+        private Bitmap originalImageCopy; // Копия оригинального изображения
         private int angle = 0;
-
-        int crpX, crpY, rectW, rectH;
-        double scale = 1;
+        private int crpX, crpY, rectW, rectH;
         private bool isSelecting = false;
-        private bool isAddingTextBox = false; // флаг, указывающий, идет ли добавление TextBox
+        private bool isDragging = false;
+        private bool isFirstPointSelected = false;
+        private Avalonia.Point dragStartPoint;
+
         public MainWindow()
         {
             InitializeComponent();
 
+            // Найти SelectionBorder
+            SelectionBorder = this.FindControl<Border>("SelectionBorder");
+
             picBox.PointerPressed += PicBox_PointerPressed;
             picBox.PointerMoved += PicBox_PointerMoved;
+            picBox.PointerReleased += PicBox_PointerReleased;
             picBox.PointerEntered += PicBox_PointerEnter;
+            picBox.PointerWheelChanged += PicBox_PointerWheelChanged;
 
             InkOpenFile.Click += InkOpenFile_Click;
             InkSaveImage.Click += InkSaveImage_Click;
@@ -38,12 +48,12 @@ namespace Laba4
             InkAddText.Click += InkAddText_Click;
             InkPaint.Click += InkPaint_Click;
             InkComposition.Click += InkComposition_Click;
-            InkFilters.Click += InkFilters_Click;
             InkZoomIn.Click += InkZoomIn_Click;
             InkZoomOut.Click += InkZoomOut_Click;
 
-            mainCanvas.Width = picBox.Width;
-            mainCanvas.Height = picBox.Height;
+            // Добавляем обработчики для ползунков
+            BrightnessSlider.ValueChanged += BrightnessSlider_ValueChanged;
+            ContrastSlider.ValueChanged += ContrastSlider_ValueChanged;
         }
 
         private async void InkOpenFile_Click(object? sender, RoutedEventArgs e)
@@ -55,6 +65,7 @@ namespace Laba4
             if (result != null && result.Length > 0 && File.Exists(result[0]))
             {
                 originalImage = new Bitmap(result[0]);
+                originalImageCopy = new Bitmap(result[0]); // Сохраняем копию
                 picBox.Source = originalImage;
                 angle = 0;
             }
@@ -63,6 +74,7 @@ namespace Laba4
         private void InkSelectArea_Click(object? sender, RoutedEventArgs e)
         {
             isSelecting = true;
+            SelectionBorder.IsVisible = true;
         }
 
         private void InkCrop_Click(object? sender, RoutedEventArgs e)
@@ -86,7 +98,7 @@ namespace Laba4
             // Создадим новый WriteableBitmap для обрезанного фрагмента
             var croppedBitmap = new WriteableBitmap(
                 new PixelSize(w, h),
-                new Vector(96, 96),
+                new Avalonia.Vector(96, 96), // Указываем полное имя Avalonia.Vector
                 PixelFormat.Bgra8888,
                 AlphaFormat.Unpremul);
 
@@ -100,8 +112,11 @@ namespace Laba4
             picBox.Source = croppedBitmap;
 
             isSelecting = false;
+            crpX = 0;
+            crpY = 0;
             rectW = 0;
             rectH = 0;
+            SelectionBorder.IsVisible = false;
         }
 
         private async void InkSaveImage_Click(object? sender, RoutedEventArgs e)
@@ -157,7 +172,7 @@ namespace Laba4
 
             var rotated = new WriteableBitmap(
                 new PixelSize(newW, newH),
-                new Vector(96, 96),
+                new Avalonia.Vector(96, 96), // Указываем полное имя Avalonia.Vector
                 PixelFormat.Bgra8888,
                 AlphaFormat.Unpremul);
 
@@ -203,65 +218,9 @@ namespace Laba4
             return rotated;
         }
 
-
-        private void MainCanvas_PointerPressed(object? sender, PointerPressedEventArgs e)
-        {
-            if (isAddingTextBox)
-            {
-                var clickPoint = e.GetPosition(mainCanvas);
-                CreateTextBox(clickPoint);
-                isAddingTextBox = false;
-            }
-        }
-
-        private void CreateTextBox(Point position)
-        {
-            var textBox = new TextBox
-            {
-                Text = "",
-                Width = 100,
-                Height = 30,
-                Background = Brushes.Transparent,
-                BorderBrush = Brushes.Transparent,
-                BorderThickness = new Thickness(1)
-            };
-
-
-            Canvas.SetLeft(textBox, position.X);
-            Canvas.SetTop(textBox, position.Y);
-
-            mainCanvas.Children.Add(textBox);
-        }
-
-
-
         private void InkAddText_Click(object? sender, RoutedEventArgs e)
         {
-            //isAddingTextBox = true;
-
-            //int width = originalImage.PixelSize.Width;
-            //int height = originalImage.PixelSize.Height;
-
-            ////Создаем новый Bitmap, и рисуем на нем и старое изображение и текст
-            //var newImage = new RenderTargetBitmap(new PixelSize(width, height), new Vector(96, 96));
-
-            //DrawingVisual drawingVisual = new DrawingVisual();
-            //DrawingContext drawingContext = drawingVisual.RenderOpen();
-
-            //using (DrawingContext context = d())
-            //{
-            //    context.DrawImage(originalImage, new Rect(0, 0, width, height));
-
-            //    //Настраиваем шрифты и кисть
-            //    var font = new Font(FontFamily.Default, 16);
-            //    var brush = Brushes.Black;
-
-            //    //Рисуем текст
-            //    context.DrawText(brush, new Point(10, 10), , font);
-            //}
-            ////Устанавливаем новое изображение на Image element
-            //picBox.Source = newImage;
-
+            // Требуется использование сторонних инструментов (SkiaSharp) для рендеринга текста на изображении.
         }
 
         private void InkPaint_Click(object? sender, RoutedEventArgs e)
@@ -274,50 +233,226 @@ namespace Laba4
             // Аналогично, составление композиции — нужна доп. логика рендеринга.
         }
 
-        private void InkFilters_Click(object? sender, RoutedEventArgs e)
+        private void ApplyFilters_Click(object? sender, RoutedEventArgs e)
         {
-            // Применение фильтров — аналогично, доступ к пикселям через CopyPixels/Lock.
+            var popup = this.FindControl<Popup>("FiltersPopup");
+
+            if (popup?.Child is Border border && border.Child is StackPanel stackPanel)
+            {
+                var brightnessSlider = stackPanel.FindControl<Slider>("BrightnessSlider");
+                var contrastSlider = stackPanel.FindControl<Slider>("ContrastSlider");
+
+                var brightness = brightnessSlider?.Value ?? 0;
+                var contrast = contrastSlider?.Value ?? 0;
+
+                ApplyFiltersToImage(brightness, contrast);
+            }
+        }
+
+        private void ApplyFiltersToImage(double brightness, double contrast)
+        {
+            if (originalImageCopy == null) return;
+
+            using var memoryStream = new MemoryStream();
+            originalImageCopy.Save(memoryStream);
+            memoryStream.Seek(0, SeekOrigin.Begin);
+
+            // Загружаем изображение с помощью ImageSharp
+            using var image = SixLabors.ImageSharp.Image.Load<Rgba32>(memoryStream);
+
+            // Применяем фильтры с помощью Mutate
+            image.Mutate(x =>
+            {
+                if (brightness != 0)
+                {
+                    x.Brightness((float)(1 + brightness));
+                }
+
+                if (contrast != 0)
+                {
+                    x.Contrast((float)(1 + contrast));
+                }
+            });
+
+            // Сохраняем измененное изображение
+            using var outputStream = new MemoryStream();
+            image.SaveAsPng(outputStream);
+            outputStream.Seek(0, SeekOrigin.Begin);
+            originalImage = new Bitmap(outputStream);
+
+            picBox.Source = originalImage;
+        }
+
+        private void BrightnessSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+        {
+            ApplyFiltersToImage(BrightnessSlider.Value, ContrastSlider.Value);
+        }
+
+        private void ContrastSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+        {
+            ApplyFiltersToImage(BrightnessSlider.Value, ContrastSlider.Value);
         }
 
         private void InkZoomIn_Click(object? sender, RoutedEventArgs e)
         {
-            // Пример: изменить масштаб через RenderTransform (нужно задать TransformOrigin и т.д.)
-            scale += 0.1;
-            picBox.RenderTransform = new ScaleTransform(scale, scale);
+            if (picBox.RenderTransform is TransformGroup group)
+            {
+                if (group.Children.FirstOrDefault(t => t is ScaleTransform) is ScaleTransform scaleTransform)
+                {
+                    var currentScale = scaleTransform.ScaleX;
+                    if (currentScale < 5) // Ограничиваем максимальный масштаб
+                    {
+                        scaleTransform.ScaleX += 0.2;
+                        scaleTransform.ScaleY += 0.2;
+
+                        // Ограничиваем перемещение, чтобы изображение не выходило за границы
+                        ClampTranslateTransform(group, picBox.Bounds, scaleTransform.ScaleX);
+                    }
+                }
+            }
         }
 
         private void InkZoomOut_Click(object? sender, RoutedEventArgs e)
         {
-            // Аналогично InkZoomIn, но уменьшение
-            if (scale >= 0.5)
+            if (picBox.RenderTransform is TransformGroup group)
             {
-                scale -= 0.1;
-                picBox.RenderTransform = new ScaleTransform(scale, scale);
+                if (group.Children.FirstOrDefault(t => t is ScaleTransform) is ScaleTransform scaleTransform)
+                {
+                    var currentScale = scaleTransform.ScaleX;
+                    if (currentScale > 0.2) // Ограничиваем минимальный масштаб
+                    {
+                        scaleTransform.ScaleX -= 0.2;
+                        scaleTransform.ScaleY -= 0.2;
+
+                        // Ограничиваем перемещение, чтобы изображение не выходило за границы
+                        ClampTranslateTransform(group, picBox.Bounds, scaleTransform.ScaleX);
+                    }
+                }
             }
-            else { return; }
-            
+        }
+
+        private void ClampTranslateTransform(TransformGroup group, Rect bounds, double scale)
+        {
+            if (group.Children.FirstOrDefault(t => t is TranslateTransform) is TranslateTransform translateTransform)
+            {
+                // Получаем размеры изображения с учетом масштаба
+                var scaledWidth = bounds.Width * scale;
+                var scaledHeight = bounds.Height * scale;
+
+                // Ограничиваем перемещение по X
+                if (scaledWidth > bounds.Width)
+                {
+                    translateTransform.X = Math.Clamp(translateTransform.X, -(scaledWidth - bounds.Width) / 2, (scaledWidth - bounds.Width) / 2);
+                }
+                else
+                {
+                    translateTransform.X = 0;
+                }
+
+                // Ограничиваем перемещение по Y
+                if (scaledHeight > bounds.Height)
+                {
+                    translateTransform.Y = Math.Clamp(translateTransform.Y, -(scaledHeight - bounds.Height) / 2, (scaledHeight - bounds.Height) / 2);
+                }
+                else
+                {
+                    translateTransform.Y = 0;
+                }
+            }
         }
 
         private void PicBox_PointerPressed(object? sender, PointerPressedEventArgs e)
         {
-            if (!isSelecting) return;
-            var p = e.GetCurrentPoint(picBox).Position;
-            crpX = (int)p.X;
-            crpY = (int)p.Y;
+            if (isSelecting)
+            {
+                var p = e.GetCurrentPoint(picBox).Position;
+
+                if (!isFirstPointSelected)
+                {
+                    // Первая точка
+                    crpX = (int)p.X;
+                    crpY = (int)p.Y;
+                    isFirstPointSelected = true;
+                }
+                else
+                {
+                    // Вторая точка
+                    rectW = (int)(p.X - crpX);
+                    rectH = (int)(p.Y - crpY);
+                    SelectionBorder.Width = Math.Abs(rectW);
+                    SelectionBorder.Height = Math.Abs(rectH);
+                    SelectionBorder.Margin = new Thickness(Math.Min(crpX, p.X), Math.Min(crpY, p.Y), 0, 0);
+                    isSelecting = false;
+                    isFirstPointSelected = false;
+                }
+            }
+            else
+            {
+                isDragging = true;
+                dragStartPoint = e.GetPosition(picBox);
+            }
+
+
         }
 
         private void PicBox_PointerMoved(object? sender, PointerEventArgs e)
         {
-            if (!isSelecting) return;
-            var p = e.GetCurrentPoint(picBox).Position;
-            rectW = (int)(p.X - crpX);
-            rectH = (int)(p.Y - crpY);
-            // Для отображения рамки выделения нужно реализовать собственный рендеринг (не входит в данный пример).
+            if (isSelecting && isFirstPointSelected)
+            {
+                var p = e.GetCurrentPoint(picBox).Position;
+                rectW = (int)(p.X - crpX);
+                rectH = (int)(p.Y - crpY);
+                SelectionBorder.Width = Math.Abs(rectW);
+                SelectionBorder.Height = Math.Abs(rectH);
+                SelectionBorder.Margin = new Thickness(Math.Min(crpX, p.X), Math.Min(crpY, p.Y), 0, 0);
+            }
+            else if (isDragging)
+            {
+                var currentPoint = e.GetPosition(picBox);
+                var delta = currentPoint - dragStartPoint;
+
+                if (picBox.RenderTransform is TransformGroup group)
+                {
+                    if (group.Children.FirstOrDefault(t => t is TranslateTransform) is TranslateTransform translateTransform &&
+                       group.Children.FirstOrDefault(t => t is ScaleTransform) is ScaleTransform scaleTransform)
+                    {
+                        // Учитываем текущий масштаб
+                        translateTransform.X += delta.X / scaleTransform.ScaleX;
+                        translateTransform.Y += delta.Y / scaleTransform.ScaleY;
+                    }
+                }
+                dragStartPoint = currentPoint;
+
+            }
+        }
+
+        private void PicBox_PointerReleased(object? sender, PointerReleasedEventArgs e)
+        {
+            isSelecting = false;
+            isDragging = false;
+            isFirstPointSelected = false;
+            // Сбрасываем размеры рамки, убираем её
+            SelectionBorder.Width = 0;
+            SelectionBorder.Height = 0;
+            SelectionBorder.Margin = new Thickness(0, 0, 0, 0);
         }
 
         private void PicBox_PointerEnter(object? sender, PointerEventArgs e)
         {
             this.Cursor = isSelecting ? new Cursor(StandardCursorType.Cross) : new Cursor(StandardCursorType.Arrow);
+        }
+
+        private void PicBox_PointerWheelChanged(object? sender, PointerWheelEventArgs e)
+        {
+            var delta = e.Delta.Y;
+            if (delta > 0)
+            {
+                InkZoomIn_Click(sender, e);
+            }
+            else
+            {
+                InkZoomOut_Click(sender, e);
+            }
         }
     }
 }
