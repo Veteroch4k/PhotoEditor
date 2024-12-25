@@ -17,10 +17,14 @@
                 BorderThickness="2"
                 BorderBrush="#A9A9A9"
                 Background="White">
-			<Canvas>
+			<Canvas Name="DrawingCanvas"
+		   PointerPressed="DrawingCanvas_PointerPressed"
+		   PointerMoved="DrawingCanvas_PointerMoved"
+		   PointerReleased="DrawingCanvas_PointerReleased"
+			PointerCaptureLost="DrawingCanvas_PointerCaptureLost">
 				<Image x:Name="picBox"
-                       Stretch="Uniform"
-                       RenderTransformOrigin="0.5, 0.5">
+					   Stretch="Uniform"
+					   RenderTransformOrigin="0.5, 0.5">
 					<Image.RenderTransform>
 						<TransformGroup>
 							<ScaleTransform ScaleX="1" ScaleY="1"/>
@@ -31,10 +35,10 @@
 
 				<!-- Выделенная область -->
 				<Border x:Name="SelectionBorder"
-                        BorderBrush="Red"
-                        BorderThickness="2"
-                        Background="Transparent"
-                        IsVisible="False"/>
+						BorderBrush="Red"
+						BorderThickness="2"
+						Background="Transparent"
+						IsVisible="False"/>
 			</Canvas>
 		</Border>
 
@@ -113,11 +117,28 @@
                         Foreground="Black"
                         Padding="10,5" />
 
-				<Button x:Name="InkPaint"
-                        Content="Paint"
-                        Background="#F0F0F0"
-                        Foreground="Black"
-                        Padding="10,5" />
+
+				<!-- Кнопка для рисования -->
+				<ToggleButton x:Name="InkPaint"
+						Content="Paint"
+						Background="#F0F0F0"
+						Foreground="Black"
+						Padding="10,5"
+						Margin="5"/>
+
+				<!-- Выбор цвета для рисования -->
+				<Popup IsOpen="{Binding IsChecked, ElementName=InkPaint}" PlacementMode="Bottom" PlacementTarget="{Binding ElementName=InkPaint}">
+					<Border Background="#E0E0E0" BorderBrush="Black" BorderThickness="1" Padding="10" Width="100">
+						<StackPanel>
+							<Button x:Name="InkRedColor" Content="Red" Click="SetRedColor" Margin="2"/>
+							<Button x:Name="InkGreenColor" Content="Green" Click="SetGreenColor" Margin="2"/>
+							<Button x:Name="InkBlueColor" Content="Blue" Click="SetBlueColor" Margin="2"/>
+							<Button x:Name="stopBtn" Content="Stop" Click="stopDrawing" Margin="2"/>
+						</StackPanel>
+					</Border>
+				</Popup>
+
+
 
 				<Button x:Name="InkComposition"
                         Content="Arrange a composition"
