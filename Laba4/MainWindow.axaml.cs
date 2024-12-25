@@ -18,6 +18,7 @@ namespace Laba4
     public partial class MainWindow : Window
     {
         private Bitmap originalImage;
+        private WriteableBitmap? _originalImage; // Убедимся, что originalImage не является локальной переменной метода
         private Bitmap originalImageCopy; // Копия оригинального изображения
         private int angle = 0;
         private int crpX, crpY, rectW, rectH;
@@ -25,6 +26,8 @@ namespace Laba4
         private bool isDragging = false;
         private bool isFirstPointSelected = false;
         private Avalonia.Point dragStartPoint;
+        private double offsetX; // Смещение по X
+        private double offsetY; // Смещение по Y
 
         public MainWindow()
         {
@@ -82,10 +85,10 @@ namespace Laba4
             if (originalImage == null || rectW <= 0 || rectH <= 0)
                 return;
 
-            int x = crpX;
-            int y = crpY;
-            int w = rectW;
-            int h = rectH;
+            int x = (int)crpX;
+            int y = (int)crpY;
+            int w = (int)rectW;
+            int h = (int)rectH;
 
             // Проверка границ
             if (x < 0) { w += x; x = 0; }
@@ -97,10 +100,10 @@ namespace Laba4
 
             // Создадим новый WriteableBitmap для обрезанного фрагмента
             var croppedBitmap = new WriteableBitmap(
-                new PixelSize(w, h),
-                new Avalonia.Vector(96, 96), // Указываем полное имя Avalonia.Vector
-                PixelFormat.Bgra8888,
-                AlphaFormat.Unpremul);
+               new PixelSize(w, h),
+               new Avalonia.Vector(96, 96),
+               PixelFormat.Bgra8888,
+               AlphaFormat.Unpremul);
 
             using (var destData = croppedBitmap.Lock())
             {
@@ -108,15 +111,64 @@ namespace Laba4
                 originalImage.CopyPixels(new PixelRect(x, y, w, h), destData.Address, w * h * 4, w * 4);
             }
 
+
+            // Сохраним обрезанное изображение как текущее
             originalImage = croppedBitmap;
+            // Обновим изображение picBox
             picBox.Source = croppedBitmap;
 
+
+            // Получаем размеры picBox
+            double containerWidth = picBox.Bounds.Width;
+            double containerHeight = picBox.Bounds.Height;
+            // Получаем размеры обрезанного изображения
+            double imageWidth = croppedBitmap.PixelSize.Width;
+            double imageHeight = croppedBitmap.PixelSize.Height;
+
+            // Рассчитываем смещения для центрирования
+            offsetX = (containerWidth - imageWidth) / 2;
+            offsetY = (containerHeight - imageHeight) / 2;
+
+            // Создаем или получаем TransformGroup
+            TransformGroup group;
+
+            if (picBox.RenderTransform is TransformGroup existingGroup)
+            {
+                group = existingGroup;
+            }
+            else
+            {
+                group = new TransformGroup();
+                picBox.RenderTransform = group;
+            }
+
+
+            // Создаем или получаем TranslateTransform
+            TranslateTransform translateTransform;
+            if (group.Children.FirstOrDefault(t => t is TranslateTransform) is TranslateTransform existingTranslateTransform)
+            {
+                translateTransform = existingTranslateTransform;
+            }
+            else
+            {
+                translateTransform = new TranslateTransform();
+                group.Children.Add(translateTransform);
+            }
+
+
+
+            // Устанавливаем смещение для центрирования
+            translateTransform.X = offsetX;
+            translateTransform.Y = offsetY;
+
+            //Очищаем выделение
             isSelecting = false;
-            crpX = 0;
-            crpY = 0;
             rectW = 0;
             rectH = 0;
-            SelectionBorder.IsVisible = false;
+            SelectionBorder.Width = 0;
+            SelectionBorder.Height = 0;
+            SelectionBorder.Margin = new Thickness(0, 0, 0, 0);
+            picBox.InvalidateVisual();
         }
 
         private async void InkSaveImage_Click(object? sender, RoutedEventArgs e)
@@ -231,6 +283,94 @@ namespace Laba4
         private void InkComposition_Click(object? sender, RoutedEventArgs e)
         {
             // Аналогично, составление композиции — нужна доп. логика рендеринга.
+            if (originalImage == null) return;
+
+            // 1. Получаем фоновое изображение (текущее picBox.Source)
+            var backgroundBitmap = originalImage;
+
+            if (backgroundBitmap == null) return;
+
+
+            // 2. Создаем композиционное изображение
+            int compWidth = backgroundBitmap.PixelSize.Width;
+            int compHeight = backgroundBitmap.PixelSize.Height;
+
+            var compositeBitmap = new WriteableBitmap(
+                new PixelSize(compWidth, compHeight),
+                new Avalonia.Vector(96, 96),
+                PixelFormat.Bgra8888,
+                 AlphaFormat.Unpremul);
+
+
+            // 3. Рисуем фоновое изображение на композиционном
+            using (var destData = compositeBitmap.Lock())
+            {
+                backgroundBitmap.CopyPixels(
+                new PixelRect(0, 0, compWidth, compHeight),
+                destData.Address,
+                compWidth * compHeight * 4,
+                compWidth * 4);
+
+                // Если есть выделение, получаем обрезанную область
+                if (rectW > 0 && rectH > 0)
+                {
+                    var croppedWidth = (int)Math.Abs(rectW);
+                    var croppedHeight = (int)Math.Abs(rectH);
+
+                    // Создаем обрезанное изображение
+                    var croppedBitmap = new WriteableBitmap(
+                      new PixelSize(croppedWidth, croppedHeight),
+                      new Avalonia.Vector(96, 96),
+                      PixelFormat.Bgra8888,
+                      AlphaFormat.Unpremul);
+
+                    using (var croppedData = croppedBitmap.Lock())
+                    {
+                        // Получаем координаты начала выделения
+                        int x = (int)crpX;
+                        int y = (int)crpY;
+                        // Проверка границ
+                        if (x < 0) { croppedWidth += x; x = 0; }
+                        if (y < 0) { croppedHeight += y; y = 0; }
+                        if (x + croppedWidth > backgroundBitmap.PixelSize.Width) croppedWidth = backgroundBitmap.PixelSize.Width - x;
+                        if (y + croppedHeight > backgroundBitmap.PixelSize.Height) croppedHeight = backgroundBitmap.PixelSize.Height - y;
+                        // Рисуем выделенную область на созданный bitmap
+                        backgroundBitmap.CopyPixels(
+                            new PixelRect(x, y, croppedWidth, croppedHeight),
+                            croppedData.Address,
+                            croppedWidth * croppedHeight * 4,
+                             croppedWidth * 4);
+                    }
+
+                    // 4. Рисуем накладываемое изображение
+
+                    // Получаем offset для накладываемого изображения
+                    int offsetX = (int)crpX;
+                    int offsetY = (int)crpY;
+
+                    using (var compData = compositeBitmap.Lock())
+                    {
+                        croppedBitmap.CopyPixels(
+                       new PixelRect(0, 0, croppedBitmap.PixelSize.Width, croppedBitmap.PixelSize.Height),
+                        compData.Address + (offsetY * compWidth + offsetX) * 4,
+                        croppedBitmap.PixelSize.Width * croppedBitmap.PixelSize.Height * 4,
+                        compWidth * 4);
+                    }
+                }
+            }
+
+            // 5. Обновляем отображение
+            originalImage = compositeBitmap;
+            picBox.Source = compositeBitmap;
+
+            // Очищаем выделение
+            isSelecting = false;
+            rectW = 0;
+            rectH = 0;
+            SelectionBorder.Width = 0;
+            SelectionBorder.Height = 0;
+            SelectionBorder.Margin = new Thickness(0, 0, 0, 0);
+            picBox.InvalidateVisual();
         }
 
         private void ApplyFilters_Click(object? sender, RoutedEventArgs e)
@@ -369,9 +509,9 @@ namespace Laba4
 
                 if (!isFirstPointSelected)
                 {
-                    // Первая точка
-                    crpX = (int)p.X;
-                    crpY = (int)p.Y;
+                    // Первая точка, теперь сохраняем координаты с учетом смещения
+                    crpX = (int)(p.X - offsetX);
+                    crpY = (int)(p.Y - offsetY);
                     isFirstPointSelected = true;
                 }
                 else
@@ -391,8 +531,6 @@ namespace Laba4
                 isDragging = true;
                 dragStartPoint = e.GetPosition(picBox);
             }
-
-
         }
 
         private void PicBox_PointerMoved(object? sender, PointerEventArgs e)
@@ -444,6 +582,7 @@ namespace Laba4
 
         private void PicBox_PointerWheelChanged(object? sender, PointerWheelEventArgs e)
         {
+            if (isSelecting) return;
             var delta = e.Delta.Y;
             if (delta > 0)
             {
