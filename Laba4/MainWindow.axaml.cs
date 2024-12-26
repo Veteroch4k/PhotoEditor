@@ -22,19 +22,17 @@ namespace Laba4
 {
     public partial class MainWindow : Window
     {
-        private Bitmap originalImage;
+        private Bitmap originalImage; // Битовая матрица изображения
         private WriteableBitmap? _originalImage; // Убедимся, что originalImage не является локальной переменной метода
         private Bitmap originalImageCopy; // Копия оригинального изображения
-        private int angle = 0;
         private int crpX, crpY, rectW, rectH;
-        private bool isSelecting = false;
-        private bool isDragging = false;
+        private bool isSelecting = false; // Выбираем ли заданную область
         private bool isFirstPointSelected = false;
         private double offsetX; // Смещение по X
         private double offsetY; // Смещение по Y
 
         /**/
-        private Canvas _drawingCanvas;
+        private Canvas _drawingCanvas; // Полотно для рисования
         private List<Avalonia.Point> _currentLinePoints;
         private bool _isDrawing;
         private bool allowedToDraw;
@@ -59,6 +57,7 @@ namespace Laba4
             // Найти SelectionBorder
             SelectionBorder = this.FindControl<Border>("SelectionBorder");
 
+            // Добавление слушаетелей на события
             picBox.PointerPressed += PicBox_PointerPressed;
             picBox.PointerMoved += PicBox_PointerMoved;
             picBox.PointerReleased += PicBox_PointerReleased;
@@ -71,9 +70,6 @@ namespace Laba4
             InkRotateRight.Click += InkRotateRight_Click;
             InkSelectArea.Click += InkSelectArea_Click;
             InkCrop.Click += InkCrop_Click;
-            InkAddText.Click += InkAddText_Click;
-            InkPaint.Click += InkPaint_Click;
-            InkComposition.Click += InkComposition_Click;
             InkZoomIn.Click += InkZoomIn_Click;
             InkZoomOut.Click += InkZoomOut_Click;
 
@@ -82,16 +78,12 @@ namespace Laba4
             ContrastSlider.ValueChanged += ContrastSlider_ValueChanged;
         }
 
-
-
-
-
-
+        // Начало рисование после выбора кисти
         private void DrawingCanvas_PointerPressed(object sender, PointerPressedEventArgs e)
         {
             if (!allowedToDraw) return;
             _isDrawing = true;
-            _currentLinePoints.Clear();
+            _currentLinePoints.Clear(); // Очищение массива точке предыдущего рисования
             var currentPoint = e.GetCurrentPoint(_drawingCanvas).Position;
             _currentLinePoints.Add(currentPoint);
             e.Handled = true; // Передаем, что событие обработано
@@ -107,12 +99,13 @@ namespace Laba4
 
             if (_currentLinePoints.Count > 1)
             {
-                DrawLine(_currentLinePoints[^2], _currentLinePoints[^1]);
+                DrawLine(_currentLinePoints[^2], _currentLinePoints[^1]); // Т.к. мы перемещаем курсор, то мы отрисовывем только две  "последние точки" после перемещения
             }
 
             e.Handled = true;
         }
 
+        // Отрисовка линии
         private void DrawLine(Avalonia.Point p1, Avalonia.Point p2)
         {
             var line = new Line
@@ -125,55 +118,43 @@ namespace Laba4
             _drawingCanvas.Children.Add(line);
         }
 
+        // Прекратили рисование
         private void DrawingCanvas_PointerReleased(object sender, PointerReleasedEventArgs e)
         {
             _isDrawing = false;
             e.Handled = true;
         }
 
-        private void DrawingCanvas_PointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
-        {
-            _isDrawing = false;
-            e.Handled = true;
-        }
-
+        // Применение красного цвета
         public void SetRedColor(object? sender, RoutedEventArgs args)
         {
             _pen = new ImmutablePen(Brushes.Red, 2);
             allowedToDraw = true;
         }
 
+        // Применение зеленого цвета
         public void SetGreenColor(object? sender, RoutedEventArgs args)
         {
             _pen = new ImmutablePen(Brushes.Green, 2);
             allowedToDraw = true;
 
         }
+
+        // Применение синего цвета
         public void SetBlueColor(object? sender, RoutedEventArgs args)
         {
             _pen = new ImmutablePen(Brushes.Blue, 2);
             allowedToDraw = true;
 
         }
+
+        // Прекратить рисование
         public void stopDrawing(object? sender, RoutedEventArgs args)
          {
             _isDrawing = false;
             allowedToDraw = false;
 
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
         // Открытие и выбор файла ( изображения )
@@ -188,10 +169,10 @@ namespace Laba4
                 originalImage = new Bitmap(result[0]);
                 originalImageCopy = new Bitmap(result[0]); // Сохраняем копию
                 picBox.Source = originalImage;
-                angle = 0;
             }
         }
 
+        // Выбрана ли функция выделения
         private void InkSelectArea_Click(object? sender, RoutedEventArgs e)
         {
             isSelecting = true;
@@ -276,7 +257,6 @@ namespace Laba4
             }
 
 
-
             // Устанавливаем смещение для центрирования
             translateTransform.X = offsetX;
             translateTransform.Y = offsetY;
@@ -299,7 +279,7 @@ namespace Laba4
 
             var dlg = new SaveFileDialog()
             {
-                DefaultExtension = "png",  // Рекомендую PNG по умолчанию
+                DefaultExtension = "png",  // PNG по умолчанию
                 Filters = new List<FileDialogFilter>()
                 {
                 new FileDialogFilter(){ Name = "PNG image", Extensions = { "png" } },
@@ -319,6 +299,7 @@ namespace Laba4
         // Метод для сохранения Canvas
         public async Task SaveCanvas(Canvas canvas, string filePath)
         {
+            // Размеры полотная
             var width = (int)canvas.Bounds.Width;
             var height = (int)canvas.Bounds.Height;
 
@@ -345,16 +326,6 @@ namespace Laba4
 
 
 
-
-
-
-
-
-
-
-
-
-
         // Поворот изображения против часовой стрелки
         private void InkRotateLeft_Click(object? sender, RoutedEventArgs e)
         {
@@ -375,6 +346,7 @@ namespace Laba4
         private Bitmap RotateByAngle(Bitmap img, int angle)
         {
 
+            // Получаем размеры изображения
             int w = img.PixelSize.Width;
             int h = img.PixelSize.Height;
 
@@ -382,34 +354,39 @@ namespace Laba4
             int newW = h; 
             int newH = w;
 
-            // Читаем пиксели в буфер
-            byte[] buffer = new byte[w * h * 4];
+            // Создаем буфер для хранения пикселей исходного изображения
+            byte[] buffer = new byte[w * h * 4]; // 4 - кол-во байтов для хранения инфы об 1 пикселе в формате Bgra8888 (blue, green, red, alpha, каждый по 8 бит = 1 байт).
+            
+            // Копируем пиксели из Bitmap в буфер
             unsafe
             {
-                fixed (byte* ptr = buffer)
+                fixed (byte* ptr = buffer) // указатель на буфер 
                 {
                     img.CopyPixels(new PixelRect(0, 0, w, h), (IntPtr)ptr, buffer.Length, w * 4);
                 }
             }
 
+            // Создаем WriteableBitmap для повернутого изображения
             var rotated = new WriteableBitmap(
                 new PixelSize(newW, newH),
-                new Avalonia.Vector(96, 96), // Указываем полное имя Avalonia.Vector
+                new Avalonia.Vector(96, 96),  // Разрешение 
                 Avalonia.Platform.PixelFormat.Bgra8888,
                 AlphaFormat.Unpremul);
 
-            using (var dstData = rotated.Lock())
+
+            using (var dstData = rotated.Lock()) // Блокируем WriteableBitmap для безопасного доступа
             {
                 unsafe
                 {
-                    fixed (byte* srcPtr = buffer)
+                    fixed (byte* srcPtr = buffer) // Фиксируем указатель на исходный буфер
                     {
                         for (int y = 0; y < h; y++)
                         {
                             for (int x = 0; x < w; x++)
                             {
                                 byte* pixel = srcPtr + (y * w * 4) + (x * 4);
-                                int dx, dy;
+
+                                int dx, dy; // Координаты пикселя в повернутом изображении
                                 switch (angle)
                                 {
                                     case 90:
@@ -438,111 +415,6 @@ namespace Laba4
 
             originalImage = rotated;
             return rotated;
-        }
-
-        private void InkAddText_Click(object? sender, RoutedEventArgs e)
-        {
-            // Требуется использование сторонних инструментов (SkiaSharp) для рендеринга текста на изображении.
-        }
-
-        private void InkPaint_Click(object? sender, RoutedEventArgs e)
-        {
-            // Аналогично. Для рисования нужен SkiaSharp или другой подход.
-        }
-
-
-        // Составление композиции
-        private void InkComposition_Click(object? sender, RoutedEventArgs e)
-        {
-            // Аналогично, составление композиции — нужна доп. логика рендеринга.
-            if (originalImage == null) return;
-
-            // 1. Получаем фоновое изображение (текущее picBox.Source)
-            var backgroundBitmap = originalImage;
-
-            if (backgroundBitmap == null) return;
-
-
-            // 2. Создаем композиционное изображение
-            int compWidth = backgroundBitmap.PixelSize.Width;
-            int compHeight = backgroundBitmap.PixelSize.Height;
-
-            var compositeBitmap = new WriteableBitmap(
-                new PixelSize(compWidth, compHeight),
-                new Avalonia.Vector(96, 96),
-                Avalonia.Platform.PixelFormat.Bgra8888,
-                 AlphaFormat.Unpremul);
-
-
-            // 3. Рисуем фоновое изображение на композиционном
-            using (var destData = compositeBitmap.Lock())
-            {
-                backgroundBitmap.CopyPixels(
-                new PixelRect(0, 0, compWidth, compHeight),
-                destData.Address,
-                compWidth * compHeight * 4,
-                compWidth * 4);
-
-                // Если есть выделение, получаем обрезанную область
-                if (rectW > 0 && rectH > 0)
-                {
-                    var croppedWidth = (int)Math.Abs(rectW);
-                    var croppedHeight = (int)Math.Abs(rectH);
-
-                    // Создаем обрезанное изображение
-                    var croppedBitmap = new WriteableBitmap(
-                      new PixelSize(croppedWidth, croppedHeight),
-                      new Avalonia.Vector(96, 96),
-                      Avalonia.Platform.PixelFormat.Bgra8888,
-                      AlphaFormat.Unpremul);
-
-                    using (var croppedData = croppedBitmap.Lock())
-                    {
-                        // Получаем координаты начала выделения
-                        int x = (int)crpX;
-                        int y = (int)crpY;
-                        // Проверка границ
-                        if (x < 0) { croppedWidth += x; x = 0; }
-                        if (y < 0) { croppedHeight += y; y = 0; }
-                        if (x + croppedWidth > backgroundBitmap.PixelSize.Width) croppedWidth = backgroundBitmap.PixelSize.Width - x;
-                        if (y + croppedHeight > backgroundBitmap.PixelSize.Height) croppedHeight = backgroundBitmap.PixelSize.Height - y;
-                        // Рисуем выделенную область на созданный bitmap
-                        backgroundBitmap.CopyPixels(
-                            new PixelRect(x, y, croppedWidth, croppedHeight),
-                            croppedData.Address,
-                            croppedWidth * croppedHeight * 4,
-                             croppedWidth * 4);
-                    }
-
-                    // 4. Рисуем накладываемое изображение
-
-                    // Получаем offset для накладываемого изображения
-                    int offsetX = (int)crpX;
-                    int offsetY = (int)crpY;
-
-                    using (var compData = compositeBitmap.Lock())
-                    {
-                        croppedBitmap.CopyPixels(
-                       new PixelRect(0, 0, croppedBitmap.PixelSize.Width, croppedBitmap.PixelSize.Height),
-                        compData.Address + (offsetY * compWidth + offsetX) * 4,
-                        croppedBitmap.PixelSize.Width * croppedBitmap.PixelSize.Height * 4,
-                        compWidth * 4);
-                    }
-                }
-            }
-
-            // 5. Обновляем отображение
-            originalImage = compositeBitmap;
-            picBox.Source = compositeBitmap;
-
-            // Очищаем выделение
-            isSelecting = false;
-            rectW = 0;
-            rectH = 0;
-            SelectionBorder.Width = 0;
-            SelectionBorder.Height = 0;
-            SelectionBorder.Margin = new Thickness(0, 0, 0, 0);
-            picBox.InvalidateVisual();
         }
 
         // Применение фильтров
@@ -625,13 +497,11 @@ namespace Laba4
                         scaleTransform.ScaleX += 0.2;
                         scaleTransform.ScaleY += 0.2;
 
-                        // Ограничиваем перемещение, чтобы изображение не выходило за границы
-                        ClampTranslateTransform(group, picBox.Bounds, scaleTransform.ScaleX);
+
                     }
                 }
             }
         }
-
 
         // Отдаление изображения
         private void InkZoomOut_Click(object? sender, RoutedEventArgs e)
@@ -646,44 +516,12 @@ namespace Laba4
                         scaleTransform.ScaleX -= 0.2;
                         scaleTransform.ScaleY -= 0.2;
 
-                        // Ограничиваем перемещение, чтобы изображение не выходило за границы
-                        ClampTranslateTransform(group, picBox.Bounds, scaleTransform.ScaleX);
                     }
                 }
             }
         }
 
-        // Ограничивает рамки изображения при масштабировании
-        private void ClampTranslateTransform(TransformGroup group, Rect bounds, double scale)
-        {
-            if (group.Children.FirstOrDefault(t => t is TranslateTransform) is TranslateTransform translateTransform)
-            {
-                // Получаем размеры изображения с учетом масштаба
-                var scaledWidth = bounds.Width * scale;
-                var scaledHeight = bounds.Height * scale;
-
-                // Ограничиваем перемещение по X
-                if (scaledWidth > bounds.Width)
-                {
-                    translateTransform.X = Math.Clamp(translateTransform.X, -(scaledWidth - bounds.Width) / 2, (scaledWidth - bounds.Width) / 2);
-                }
-                else
-                {
-                    translateTransform.X = 0;
-                }
-
-                // Ограничиваем перемещение по Y
-                if (scaledHeight > bounds.Height)
-                {
-                    translateTransform.Y = Math.Clamp(translateTransform.Y, -(scaledHeight - bounds.Height) / 2, (scaledHeight - bounds.Height) / 2);
-                }
-                else
-                {
-                    translateTransform.Y = 0;
-                }
-            }
-        }
-
+        
         // Инициализирует TransformGroup и RenderTransformOrigin
         private void InitializeImageTransform()
         {
