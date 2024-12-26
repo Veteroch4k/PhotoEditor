@@ -8,21 +8,19 @@ using System.Globalization;
 using System.IO;
 using Avalonia.Platform;
 using System.Linq;
+using System.Drawing.Imaging;
 
 namespace Laba4.Models
 {
     public class ImageModel
     {
 
-        /// <summary>
-        /// Текущее изображение в формате Avalonia Bitmap.
-        /// </summary>
+        // Текущее изображение в формате Avalonia Bitmap.
         public Bitmap? CurrentBitmap { get; private set; }
         public Bitmap? CurrentBitmapCopy { get; private set; }
 
-        /// <summary>
-        /// Загружает изображение из файла и сохраняет в CurrentBitmap.
-        /// </summary>
+
+        // Загружает изображение из файла и сохраняет в CurrentBitmap.
         public void LoadFromFile(string path)
         {
             if (!File.Exists(path))
@@ -32,9 +30,7 @@ namespace Laba4.Models
             CurrentBitmapCopy = new Bitmap(path);
         }
 
-        /// <summary>
-        /// Сохраняет текущее изображение в указанный файл (в том формате, который соответствует расширению).
-        /// </summary>
+        // Сохраняет текущее изображение в указанный файл
         public void SaveToFile(string path)
         {
             if (CurrentBitmap == null) return;
@@ -43,9 +39,7 @@ namespace Laba4.Models
             CurrentBitmap.Save(fs);
         }
 
-        /// <summary>
-        /// Поворот изображения (пример: на 90 градусов по часовой стрелке).
-        /// </summary>
+        // Поворот по часовой стрелки на 90 градусов
         public void RotateRight90()
         {
             if (CurrentBitmap == null) return;
@@ -64,9 +58,7 @@ namespace Laba4.Models
             CurrentBitmap = new Bitmap(outputStream);
         }
 
-        /// <summary>
-        /// Аналогично можно сделать RotateLeft90, Crop, ApplyFilters и т. п.
-        /// </summary>
+        // Поворот против часовой стрелки на 90 градусов
         public void RotateLeft90()
         {
             if (CurrentBitmap == null) return;
@@ -85,7 +77,7 @@ namespace Laba4.Models
             CurrentBitmap = new Bitmap(outputStream);
         }
 
-        // Пример применения контрастности/яркости
+        // Применения контрастности/яркости
         public void ApplyFilters(double brightness, double contrast)
         {
 
@@ -120,7 +112,7 @@ namespace Laba4.Models
 
         }
 
-
+        // Добавление текста изображению
         public RenderTargetBitmap AddTextToImage(string currentText, Avalonia.Point currentTextPosition)
         {
             if (CurrentBitmap == null)
@@ -152,7 +144,7 @@ namespace Laba4.Models
             return renderBitmap;
         }
 
-
+        // Обрезка изображения
         public void CropImage(int crpX, int crpY, int rectW, int rectH) // ширина и высота выделенной области
         {
             if (CurrentBitmap == null || rectW <= 0 || rectH <= 0)
@@ -190,10 +182,7 @@ namespace Laba4.Models
             // Обновим изображение picBox
             //picBox.Source = croppedBitmap;
 
-
-
         }
-
 
     }
 }

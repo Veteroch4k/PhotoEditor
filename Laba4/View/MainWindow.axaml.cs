@@ -8,6 +8,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Media.Immutable;
 using Avalonia.Platform;
+using Avalonia.Threading;
 using Laba4.Models;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -29,7 +30,6 @@ namespace Laba4
 
         /**/
         private Bitmap originalImage; // Битовая матрица изображения
-        private Bitmap originalImageCopy; // Битовая матрица изображения
 
 
         private int crpX, crpY, rectW, rectH;
@@ -61,7 +61,7 @@ namespace Laba4
 
             InitializeComponent();
 
-            InitializeImageTransform();
+            InitializeImageTransform(); // Сомнительно
 
             /*Рисование*/
             _drawingCanvas = this.FindControl<Canvas>("DrawingCanvas");
@@ -97,12 +97,27 @@ namespace Laba4
         }
 
 
-        /// <summary>
-        /// Все то, что я уже добавил
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
+        // Инициализирует TransformGroup и RenderTransformOrigin
+        private void InitializeImageTransform()
+        {
+            if (picBox.RenderTransform is not TransformGroup group)
+            {
+                group = new TransformGroup();
 
+                // Добавляем ScaleTransform
+                var scaleTransform = new ScaleTransform { ScaleX = 1, ScaleY = 1 };
+                group.Children.Add(scaleTransform);
+
+                // Добавляем TranslateTransform
+                var translateTransform = new TranslateTransform();
+                group.Children.Add(translateTransform);
+
+                picBox.RenderTransform = group;
+            }
+
+            // Устанавливаем RenderTransformOrigin для масштабирования из центра
+            picBox.RenderTransformOrigin = new RelativePoint(0.5, 0.5, RelativeUnit.Relative);
+        }
 
 
         // Открытие и выбор файла ( изображения )
@@ -116,8 +131,7 @@ namespace Laba4
             {
 
                 imageModel.LoadFromFile(result[0]); // получаем путь к изображению
-                originalImage = new Bitmap(result[0]);
-                originalImageCopy = new Bitmap(result[0]);
+                originalImage = imageModel.CurrentBitmap;
                 picBox.Source = originalImage;
             }
         }
@@ -166,10 +180,6 @@ namespace Laba4
         }
 
 
-        /*Пока не перенес*/
-
-
-
         // Выбрана ли функция выделения
         private void InkSelectArea_Click(object? sender, RoutedEventArgs e)
         {
@@ -187,59 +197,41 @@ namespace Laba4
             // Обновим изображение picBox
             picBox.Source = imageModel.CurrentBitmap;
 
-            /*ВСО*/
-
-
         }
 
+        /// Начало логики Канваса
 
-
-        /// <summary>
-        /// Все то, что я уже добавил (сверху)
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-
-        // Начало рисование после выбора кисти
+        // Начало рисование после выбора кисти или добавление текста
         private void DrawingCanvas_PointerPressed(object sender, PointerPressedEventArgs e)
         {
 
-            // Проверяем, что режим добавления текста активен и что Canvas и оригинальное изображение доступны
             if (isAddingText && _drawingCanvas != null && originalImage != null)
             {
-                // Получаем позицию клика по Canvas
                 clickPosition = e.GetPosition(_drawingCanvas);
 
-                // Убедитесь, что позиция клика в пределах Canvas
                 if (clickPosition.X < 0 || clickPosition.Y < 0 || clickPosition.X > _drawingCanvas.Width || clickPosition.Y > _drawingCanvas.Height)
                 {
-                    return; // Если клик вне Canvas, не создаем TextBox
+                    return;
                 }
 
-                // Создаем TextBox для ввода текста
                 currentTextBox = new TextBox
                 {
-                    Text = "Введите ваш текст здесь...",  // Предустановленный текст
-                    Foreground = Brushes.Black,
+                    //Убираем дефолтный текст
+                    Foreground = Brushes.Red,
                     Background = Brushes.Transparent,
                     BorderBrush = Brushes.Transparent,
                     BorderThickness = new Avalonia.Thickness(0),
-                    FontSize = 16,
-                    Width = 200,
+                    FontSize = 32,
+                    Width = 125,
                     Height = 50,
                 };
 
-                // Устанавливаем позицию TextBox на Canvas в место клика
                 Canvas.SetLeft(currentTextBox, clickPosition.X);
                 Canvas.SetTop(currentTextBox, clickPosition.Y);
 
-                // Добавляем TextBox на Canvas
                 _drawingCanvas.Children.Add(currentTextBox);
-
-                // Устанавливаем фокус на TextBox, чтобы можно было сразу вводить текст
                 currentTextBox.Focus();
 
-                // Обработчик события завершения редактирования текста
                 currentTextBox.LostFocus += (s, args) =>
                 {
                     if (currentTextBox != null)
@@ -248,18 +240,27 @@ namespace Laba4
                         currentText = currentTextBox.Text;
                         currentTextPosition = clickPosition;
 
-                        // Убираем TextBox с Canvas
-                        _drawingCanvas.Children.Remove(currentTextBox);
+                        // Проверяем, что текст не пустой
+                        if (!string.IsNullOrWhiteSpace(currentText))
+                        {
+                            // Добавляем текст на изображение
+                            picBox.Source = imageModel.AddTextToImage(currentText, currentTextPosition);
+                        }
 
-                        // Добавляем текст на изображение
-                        picBox.Source = imageModel.AddTextToImage(currentText, currentTextPosition);
+                        // Удаляем TextBox на следующем фрейме отрисовки
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            if (currentTextBox != null)
+                            {
+                                _drawingCanvas.Children.Remove(currentTextBox);
+                                currentTextBox = null;
+                            }
 
-                        // Очищаем переменную
-                        currentTextBox = null;
+                            // Выключаем режим добавления текста
+                            isAddingText = false;
+                        }, DispatcherPriority.Background);
+
                     }
-
-                    // Выключаем режим добавления текста
-                    isAddingText = false;
                 };
             }
 
@@ -302,7 +303,6 @@ namespace Laba4
             _drawingCanvas.Children.Add(line);
         }
 
-        // Прекратили рисование
         private void DrawingCanvas_PointerReleased(object sender, PointerReleasedEventArgs e)
         {
             _isDrawing = false;
@@ -393,14 +393,7 @@ namespace Laba4
         }
 
 
-        /* Была логика Канваса*/
-
-
-        /// <summary>
-        /// Функции самого View
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
+        /// Конец логики Канваса
 
         // Приближение изображения
         private void InkZoomIn_Click(object? sender, RoutedEventArgs e)
@@ -436,29 +429,6 @@ namespace Laba4
                     }
                 }
             }
-        }
-
-
-        // Инициализирует TransformGroup и RenderTransformOrigin
-        private void InitializeImageTransform()
-        {
-            if (picBox.RenderTransform is not TransformGroup group)
-            {
-                group = new TransformGroup();
-
-                // Добавляем ScaleTransform
-                var scaleTransform = new ScaleTransform { ScaleX = 1, ScaleY = 1 };
-                group.Children.Add(scaleTransform);
-
-                // Добавляем TranslateTransform
-                var translateTransform = new TranslateTransform();
-                group.Children.Add(translateTransform);
-
-                picBox.RenderTransform = group;
-            }
-
-            // Устанавливаем RenderTransformOrigin для масштабирования из центра
-            picBox.RenderTransformOrigin = new RelativePoint(0.5, 0.5, RelativeUnit.Relative);
         }
 
 
@@ -511,7 +481,7 @@ namespace Laba4
             
         }
 
-
+        // Выделили рамку
         private void PicBox_PointerReleased(object? sender, PointerReleasedEventArgs e)
         {
             isSelecting = false;
@@ -542,14 +512,6 @@ namespace Laba4
                 InkZoomOut_Click(sender, e);
             }
         }
-
-
-        /***/
-
-
-
-
-
 
     }
 }
