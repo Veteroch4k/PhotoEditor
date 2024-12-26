@@ -86,29 +86,38 @@ namespace Laba4.Models
         }
 
         // Пример применения контрастности/яркости
-        public void ApplyFilters(float brightness, float contrast)
+        public void ApplyFilters(double brightness, double contrast)
         {
+
             if (CurrentBitmapCopy == null) return;
 
-            // Сохраняем текущее изображение в MemoryStream
-            using var stream = new MemoryStream();
-            CurrentBitmapCopy.Save(stream);
-            stream.Position = 0;
+            using var memoryStream = new MemoryStream();
+            CurrentBitmapCopy.Save(memoryStream);
+            memoryStream.Seek(0, SeekOrigin.Begin);
 
-            // Загружаем в ImageSharp
-            using var image = SixLabors.ImageSharp.Image.Load<Rgba32>(stream);
+            // Загружаем изображение с помощью ImageSharp
+            using var image = SixLabors.ImageSharp.Image.Load<Rgba32>(memoryStream);
+
+            // Применяем фильтры с помощью Mutate
             image.Mutate(x =>
             {
-                // Яркость: 1.0f - исходная, >1 - ярче, <1 - тусклее
-                x.Brightness(brightness);
-                x.Contrast(contrast);
+                if (brightness != 0)
+                {
+                    x.Brightness((float)(1 + brightness));
+                }
+
+                if (contrast != 0)
+                {
+                    x.Contrast((float)(1 + contrast));
+                }
             });
 
-            // Обратно в Bitmap
+            // Сохраняем измененное изображение
             using var outputStream = new MemoryStream();
             image.SaveAsPng(outputStream);
-            outputStream.Position = 0;
+            outputStream.Seek(0, SeekOrigin.Begin);
             CurrentBitmap = new Bitmap(outputStream);
+
         }
 
 
@@ -144,7 +153,7 @@ namespace Laba4.Models
         }
 
 
-        public void CropImage(double width, double height, int crpX, int crpY, int rectW, int rectH) // ширина и высота выделенной области
+        public void CropImage(int crpX, int crpY, int rectW, int rectH) // ширина и высота выделенной области
         {
             if (CurrentBitmap == null || rectW <= 0 || rectH <= 0)
                 return;
@@ -180,6 +189,8 @@ namespace Laba4.Models
             CurrentBitmap = croppedBitmap;
             // Обновим изображение picBox
             //picBox.Source = croppedBitmap;
+
+
 
         }
 

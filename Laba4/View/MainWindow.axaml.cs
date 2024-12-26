@@ -116,7 +116,8 @@ namespace Laba4
             {
 
                 imageModel.LoadFromFile(result[0]); // получаем путь к изображению
-                originalImage = imageModel.CurrentBitmap;
+                originalImage = new Bitmap(result[0]);
+                originalImageCopy = new Bitmap(result[0]);
                 picBox.Source = originalImage;
             }
         }
@@ -125,199 +126,47 @@ namespace Laba4
         // Поворот изображения против часовой стрелки
         private void InkRotateLeft_Click(object? sender, RoutedEventArgs e)
         {
-            if (originalImage == null) return;
-            picBox.Source = RotateByAngle(originalImage, -90);
+            imageModel.RotateLeft90();
+            
+            picBox.Source = imageModel.CurrentBitmap;
         }
 
 
         // Поворот изображения по часовой стрелке
         private void InkRotateRight_Click(object? sender, RoutedEventArgs e)
         {
-            if (originalImage == null) return;
-            picBox.Source = RotateByAngle(originalImage, 90);
-        }
+            imageModel.RotateRight90();
 
-
-        // Реализация поворота изображения
-        private Bitmap RotateByAngle(Bitmap img, int angle)
-        {
-
-            // Получаем размеры изображения
-            int w = img.PixelSize.Width;
-            int h = img.PixelSize.Height;
-
-            // Длина и ширина меняются местами
-            int newW = h;
-            int newH = w;
-
-            // Создаем буфер для хранения пикселей исходного изображения
-            byte[] buffer = new byte[w * h * 4]; // 4 - кол-во байтов для хранения инфы об 1 пикселе в формате Bgra8888 (blue, green, red, alpha, каждый по 8 бит = 1 байт).
-
-            // Копируем пиксели из Bitmap в буфер
-            unsafe
-            {
-                fixed (byte* ptr = buffer) // указатель на буфер 
-                {
-                    img.CopyPixels(new PixelRect(0, 0, w, h), (IntPtr)ptr, buffer.Length, w * 4);
-                }
-            }
-
-            // Создаем WriteableBitmap для повернутого изображения
-            var rotated = new WriteableBitmap(
-                new PixelSize(newW, newH),
-                new Avalonia.Vector(96, 96),  // Разрешение 
-                Avalonia.Platform.PixelFormat.Bgra8888,
-                AlphaFormat.Unpremul);
-
-
-            using (var dstData = rotated.Lock()) // Блокируем WriteableBitmap для безопасного доступа
-            {
-                unsafe
-                {
-                    fixed (byte* srcPtr = buffer) // Фиксируем указатель на исходный буфер
-                    {
-                        for (int y = 0; y < h; y++)
-                        {
-                            for (int x = 0; x < w; x++)
-                            {
-                                byte* pixel = srcPtr + (y * w * 4) + (x * 4);
-
-                                int dx, dy; // Координаты пикселя в повернутом изображении
-                                switch (angle)
-                                {
-                                    case 90:
-                                        dx = h - 1 - y;
-                                        dy = x;
-                                        break;
-                                    case -90:
-                                        dx = y;
-                                        dy = w - 1 - x;
-                                        break;
-                                    default:
-                                        dx = x; dy = y;
-                                        break;
-                                }
-
-                                byte* dstPtr = (byte*)dstData.Address + (dy * dstData.RowBytes) + (dx * 4);
-                                dstPtr[0] = pixel[0];
-                                dstPtr[1] = pixel[1];
-                                dstPtr[2] = pixel[2];
-                                dstPtr[3] = pixel[3];
-                            }
-                        }
-                    }
-                }
-            }
-
-            originalImage = rotated;
-            return rotated;
-        }
-
-        // Наложение фильтров на изображение
-        private void ApplyFiltersToImage(double brightness, double contrast)
-        {
-            if (originalImageCopy == null) return;
-
-            using var memoryStream = new MemoryStream();
-            originalImageCopy.Save(memoryStream);
-            memoryStream.Seek(0, SeekOrigin.Begin);
-
-            // Загружаем изображение с помощью ImageSharp
-            using var image = SixLabors.ImageSharp.Image.Load<Rgba32>(memoryStream);
-
-            // Применяем фильтры с помощью Mutate
-            image.Mutate(x =>
-            {
-                if (brightness != 0)
-                {
-                    x.Brightness((float)(1 + brightness));
-                }
-
-                if (contrast != 0)
-                {
-                    x.Contrast((float)(1 + contrast));
-                }
-            });
-
-            // Сохраняем измененное изображение
-            using var outputStream = new MemoryStream();
-            image.SaveAsPng(outputStream);
-            outputStream.Seek(0, SeekOrigin.Begin);
-            originalImage = new Bitmap(outputStream);
-
-            picBox.Source = originalImage;
+            picBox.Source = imageModel.CurrentBitmap;
         }
 
 
         // Изменение яркости
         private void BrightnessSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
         {
-            ApplyFiltersToImage(BrightnessSlider.Value, ContrastSlider.Value);
+            imageModel.ApplyFilters(BrightnessSlider.Value, ContrastSlider.Value);
+            picBox.Source = imageModel.CurrentBitmap;
+
         }
 
 
         // Изменение контрастности
         private void ContrastSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
         {
-            ApplyFiltersToImage(BrightnessSlider.Value, ContrastSlider.Value);
+            imageModel.ApplyFilters(BrightnessSlider.Value, ContrastSlider.Value);
+            picBox.Source = imageModel.CurrentBitmap;
+
         }
 
-
-        // Применение фильтров
-        private void ApplyFilters_Click(object? sender, RoutedEventArgs e)
-        {
-            var popup = this.FindControl<Popup>("FiltersPopup");
-
-            if (popup?.Child is Border border && border.Child is StackPanel stackPanel)
-            {
-                var brightnessSlider = stackPanel.FindControl<Slider>("BrightnessSlider");
-                var contrastSlider = stackPanel.FindControl<Slider>("ContrastSlider");
-
-                var brightness = brightnessSlider?.Value ?? 0;
-                var contrast = contrastSlider?.Value ?? 0;
-
-                ApplyFiltersToImage(brightness, contrast);
-            }
-        }
-
-
-
-        // Метод для добавления текста на изображение
-        private void AddTextToImage()
-        {
-            if (originalImage == null)
-                return;
-
-            // Получаем размеры изображения
-            var width = originalImage.PixelSize.Width;
-            var height = originalImage.PixelSize.Height;
-
-            PixelSize pixelSize = new PixelSize(width, height);
-
-            // Создаем RenderTargetBitmap для комбинированного изображения
-            var renderBitmap = new RenderTargetBitmap(pixelSize);
-            using (var context = renderBitmap.CreateDrawingContext(true))
-            {
-                // Рисуем исходное изображение
-                context.DrawImage(originalImage, new Rect(0, 0, width, height));
-
-                // Устанавливаем параметры текста
-                var formattedText = new FormattedText(currentText, CultureInfo.GetCultureInfo("en-us"), FlowDirection.LeftToRight, new Typeface("Verdana"), 32, Brushes.Red);
-                var textBrush = Brushes.White;
-
-                // Рисуем текст на изображении
-                context.DrawText(formattedText, new Avalonia.Point(currentTextPosition.X, currentTextPosition.Y));
-            }
-
-            // Отображаем новое изображение в UI
-            picBox.Source = renderBitmap;
-        }
 
         // Обработчик клика на кнопку добавления текста
         private void OnAddTextButtonClick(object? sender, RoutedEventArgs e)
         {
             isAddingText = true;
         }
+
+
+        /*Пока не перенес*/
 
 
 
@@ -332,98 +181,21 @@ namespace Laba4
         // Обрезка изображения
         private void InkCrop_Click(object? sender, RoutedEventArgs e)
         {
-            if (originalImage == null || rectW <= 0 || rectH <= 0)
-                return;
-
-            int x = (int)crpX;
-            int y = (int)crpY;
-            int w = (int)rectW;
-            int h = (int)rectH;
-
-            // Проверка границ
-            if (x < 0) { w += x; x = 0; }
-            if (y < 0) { h += y; y = 0; }
-            if (x + w > originalImage.PixelSize.Width) w = originalImage.PixelSize.Width - x;
-            if (y + h > originalImage.PixelSize.Height) h = originalImage.PixelSize.Height - y;
-
-            if (w <= 0 || h <= 0) return;
-
-            // Создадим новый WriteableBitmap для обрезанного фрагмента
-            var croppedBitmap = new WriteableBitmap(
-               new PixelSize(w, h),
-               new Avalonia.Vector(96, 96),
-               Avalonia.Platform.PixelFormat.Bgra8888,
-               AlphaFormat.Unpremul);
-
-            using (var destData = croppedBitmap.Lock())
-            {
-                // Скопируем пиксели из оригинального изображения в новую область
-                originalImage.CopyPixels(new PixelRect(x, y, w, h), destData.Address, w * h * 4, w * 4);
-            }
-
-
+            
             // Сохраним обрезанное изображение как текущее
-            originalImage = croppedBitmap;
+            imageModel.CropImage(crpX, crpY, rectW, rectH);            
             // Обновим изображение picBox
-            picBox.Source = croppedBitmap;
+            picBox.Source = imageModel.CurrentBitmap;
+
+            /*ВСО*/
 
 
-            // Получаем размеры picBox
-            double containerWidth = picBox.Bounds.Width;
-            double containerHeight = picBox.Bounds.Height;
-            // Получаем размеры обрезанного изображения
-            double imageWidth = croppedBitmap.PixelSize.Width;
-            double imageHeight = croppedBitmap.PixelSize.Height;
-
-            // Рассчитываем смещения для центрирования
-            offsetX = (containerWidth - imageWidth) / 2;
-            offsetY = (containerHeight - imageHeight) / 2;
-
-            // Создаем или получаем TransformGroup
-            TransformGroup group;
-
-            if (picBox.RenderTransform is TransformGroup existingGroup)
-            {
-                group = existingGroup;
-            }
-            else
-            {
-                group = new TransformGroup();
-                picBox.RenderTransform = group;
-            }
-
-
-            // Создаем или получаем TranslateTransform
-            TranslateTransform translateTransform;
-            if (group.Children.FirstOrDefault(t => t is TranslateTransform) is TranslateTransform existingTranslateTransform)
-            {
-                translateTransform = existingTranslateTransform;
-            }
-            else
-            {
-                translateTransform = new TranslateTransform();
-                group.Children.Add(translateTransform);
-            }
-
-
-            // Устанавливаем смещение для центрирования
-            translateTransform.X = offsetX;
-            translateTransform.Y = offsetY;
-
-            //Очищаем выделение
-            isSelecting = false;
-            rectW = 0;
-            rectH = 0;
-            SelectionBorder.Width = 0;
-            SelectionBorder.Height = 0;
-            SelectionBorder.Margin = new Thickness(0, 0, 0, 0);
-            picBox.InvalidateVisual();
         }
 
 
 
         /// <summary>
-        /// Все то, что я уже добавил
+        /// Все то, что я уже добавил (сверху)
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -480,7 +252,7 @@ namespace Laba4
                         _drawingCanvas.Children.Remove(currentTextBox);
 
                         // Добавляем текст на изображение
-                        AddTextToImage();
+                        picBox.Source = imageModel.AddTextToImage(currentText, currentTextPosition);
 
                         // Очищаем переменную
                         currentTextBox = null;
