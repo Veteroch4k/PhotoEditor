@@ -14,6 +14,7 @@ using SixLabors.ImageSharp.Processing;
 using System;
 using System.Collections.Generic;
 using System.Drawing.Imaging;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -37,6 +38,14 @@ namespace Laba4
         private bool _isDrawing;
         private bool allowedToDraw;
         private ImmutablePen _pen;
+
+        /**/
+
+        private bool isAddingText = false;
+        private TextBox currentTextBox;
+        private Avalonia.Point clickPosition;
+        private string currentText;
+        private Avalonia.Point currentTextPosition;
 
 
         public MainWindow()
@@ -81,12 +90,74 @@ namespace Laba4
         // Начало рисование после выбора кисти
         private void DrawingCanvas_PointerPressed(object sender, PointerPressedEventArgs e)
         {
+
+            // Проверяем, что режим добавления текста активен и что Canvas и оригинальное изображение доступны
+            if (isAddingText && _drawingCanvas != null && originalImage != null)
+            {
+                // Получаем позицию клика по Canvas
+                clickPosition = e.GetPosition(_drawingCanvas);
+
+                // Убедитесь, что позиция клика в пределах Canvas
+                if (clickPosition.X < 0 || clickPosition.Y < 0 || clickPosition.X > _drawingCanvas.Width || clickPosition.Y > _drawingCanvas.Height)
+                {
+                    return; // Если клик вне Canvas, не создаем TextBox
+                }
+
+                // Создаем TextBox для ввода текста
+                currentTextBox = new TextBox
+                {
+                    Text = "Введите ваш текст здесь...",  // Предустановленный текст
+                    Foreground = Brushes.Black,
+                    Background = Brushes.Transparent,
+                    BorderBrush = Brushes.Transparent,
+                    BorderThickness = new Avalonia.Thickness(0),
+                    FontSize = 16,
+                    Width = 200,
+                    Height = 50,
+                };
+
+                // Устанавливаем позицию TextBox на Canvas в место клика
+                Canvas.SetLeft(currentTextBox, clickPosition.X);
+                Canvas.SetTop(currentTextBox, clickPosition.Y);
+
+                // Добавляем TextBox на Canvas
+                _drawingCanvas.Children.Add(currentTextBox);
+
+                // Устанавливаем фокус на TextBox, чтобы можно было сразу вводить текст
+                currentTextBox.Focus();
+
+                // Обработчик события завершения редактирования текста
+                currentTextBox.LostFocus += (s, args) =>
+                {
+                    if (currentTextBox != null)
+                    {
+                        // Сохраняем введенный текст и позицию
+                        currentText = currentTextBox.Text;
+                        currentTextPosition = clickPosition;
+
+                        // Убираем TextBox с Canvas
+                        _drawingCanvas.Children.Remove(currentTextBox);
+
+                        // Добавляем текст на изображение
+                        AddTextToImage();
+
+                        // Очищаем переменную
+                        currentTextBox = null;
+                    }
+
+                    // Выключаем режим добавления текста
+                    isAddingText = false;
+                };
+            }
+
             if (!allowedToDraw) return;
             _isDrawing = true;
             _currentLinePoints.Clear(); // Очищение массива точке предыдущего рисования
             var currentPoint = e.GetCurrentPoint(_drawingCanvas).Position;
             _currentLinePoints.Add(currentPoint);
+
             e.Handled = true; // Передаем, что событие обработано
+
         }
 
 
@@ -497,7 +568,6 @@ namespace Laba4
                         scaleTransform.ScaleX += 0.2;
                         scaleTransform.ScaleY += 0.2;
 
-
                     }
                 }
             }
@@ -521,7 +591,7 @@ namespace Laba4
             }
         }
 
-        
+
         // Инициализирует TransformGroup и RenderTransformOrigin
         private void InitializeImageTransform()
         {
@@ -578,9 +648,13 @@ namespace Laba4
         // Определяем саму рамку( для выделения обрезаемой области )
         private void PicBox_PointerMoved(object? sender, PointerEventArgs e)
         {
+            if (!isSelecting) return;
+            var p = e.GetCurrentPoint(picBox).Position;
+            rectW = (int)(p.X - crpX);
+            rectH = (int)(p.Y - crpY);
             if (isSelecting && isFirstPointSelected)
             {
-                var p = e.GetCurrentPoint(picBox).Position;
+                p = e.GetCurrentPoint(picBox).Position;
                 rectW = (int)(p.X - crpX);
                 rectH = (int)(p.Y - crpY);
                 SelectionBorder.Width = Math.Abs(rectW);
@@ -601,11 +675,15 @@ namespace Laba4
             SelectionBorder.Margin = new Thickness(0, 0, 0, 0);
         }
 
+
+
+        // Изменение внешнего вида курсора
         private void PicBox_PointerEnter(object? sender, PointerEventArgs e)
         {
             this.Cursor = isSelecting ? new Cursor(StandardCursorType.Cross) : new Cursor(StandardCursorType.Arrow);
         }
 
+        // Изменение масштаба колесиком мыши
         private void PicBox_PointerWheelChanged(object? sender, PointerWheelEventArgs e)
         {
             if (isSelecting) return;
@@ -619,5 +697,50 @@ namespace Laba4
                 InkZoomOut_Click(sender, e);
             }
         }
+
+
+        /***/
+
+        // Метод для добавления текста на изображение
+        private void AddTextToImage()
+        {
+            if (originalImage == null)
+                return;
+
+            // Получаем размеры изображения
+            var width = originalImage.PixelSize.Width;
+            var height = originalImage.PixelSize.Height;
+
+            PixelSize pixelSize = new PixelSize(width, height);
+
+            // Создаем RenderTargetBitmap для комбинированного изображения
+            var renderBitmap = new RenderTargetBitmap(pixelSize);
+            using (var context = renderBitmap.CreateDrawingContext(true))
+            {
+                // Рисуем исходное изображение
+                context.DrawImage(originalImage, new Rect(0, 0, width, height));
+
+                // Устанавливаем параметры текста
+                var formattedText = new FormattedText(currentText, CultureInfo.GetCultureInfo("en-us"), FlowDirection.LeftToRight, new Typeface("Verdana"), 32, Brushes.Red);
+                var textBrush = Brushes.White;
+
+                // Рисуем текст на изображении
+                context.DrawText(formattedText, new Avalonia.Point(currentTextPosition.X, currentTextPosition.Y));
+            }
+
+            // Отображаем новое изображение в UI
+            picBox.Source = renderBitmap;
+        }
+
+        // Обработчик клика на кнопку добавления текста
+        private void OnAddTextButtonClick(object? sender, RoutedEventArgs e)
+        {
+            isAddingText = true;
+        }
+
+
+
+
+
     }
 }

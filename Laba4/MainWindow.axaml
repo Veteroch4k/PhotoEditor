@@ -17,7 +17,7 @@
                 BorderThickness="2"
                 BorderBrush="#A9A9A9"
                 Background="White">
-			<Canvas Name="DrawingCanvas"
+			<Canvas Name="DrawingCanvas" Background="Transparent"
 		   PointerPressed="DrawingCanvas_PointerPressed"
 		   PointerMoved="DrawingCanvas_PointerMoved"
 		   PointerReleased="DrawingCanvas_PointerReleased">
@@ -114,7 +114,8 @@
                         Content="Add text"
                         Background="#F0F0F0"
                         Foreground="Black"
-                        Padding="10,5" />
+                        Padding="10,5" 
+						Click="OnAddTextButtonClick"/>
 
 
 				<!-- Кнопка для рисования -->
