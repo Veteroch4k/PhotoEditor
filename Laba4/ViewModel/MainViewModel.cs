@@ -29,14 +29,9 @@ namespace Laba4
         private ImageModel imageModel;
 
         /**/
-        private Bitmap originalImage; // Битовая матрица изображения
-
-
         private int crpX, crpY, rectW, rectH;
         private bool isSelecting = false; // Выбираем ли заданную область
         private bool isFirstPointSelected = false;
-        private double offsetX; // Смещение по X
-        private double offsetY; // Смещение по Y
 
         /*Для рисования*/
         private Canvas _drawingCanvas; // Полотно для рисования
@@ -131,8 +126,7 @@ namespace Laba4
             {
 
                 imageModel.LoadFromFile(result[0]); // получаем путь к изображению
-                originalImage = imageModel.CurrentBitmap;
-                picBox.Source = originalImage;
+                picBox.Source = imageModel.CurrentBitmap;
             }
         }
 
@@ -205,7 +199,7 @@ namespace Laba4
         private void DrawingCanvas_PointerPressed(object sender, PointerPressedEventArgs e)
         {
 
-            if (isAddingText && _drawingCanvas != null && originalImage != null)
+            if (isAddingText && _drawingCanvas != null && imageModel.CurrentBitmap != null)
             {
                 clickPosition = e.GetPosition(_drawingCanvas);
 
@@ -442,8 +436,8 @@ namespace Laba4
                 if (!isFirstPointSelected)
                 {
                     // Первая точка, теперь сохраняем координаты с учетом смещения
-                    crpX = (int)(p.X - offsetX);
-                    crpY = (int)(p.Y - offsetY);
+                    crpX = (int)(p.X);
+                    crpY = (int)(p.Y);
                     isFirstPointSelected = true;
                 }
                 else
