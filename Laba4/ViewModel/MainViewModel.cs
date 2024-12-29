@@ -10,6 +10,7 @@ using Avalonia.Media.Immutable;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using Laba4.Models;
+using Laba4.Operations;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
@@ -125,7 +126,8 @@ namespace Laba4
             if (result != null && result.Length > 0 && File.Exists(result[0]))
             {
 
-                imageModel.LoadFromFile(result[0]); // получаем путь к изображению
+                imageModel.CurrentBitmap = LoadingImageFromFile.LoadFromFile(result[0]); // получаем путь к изображению
+                imageModel.CurrentBitmapCopy = LoadingImageFromFile.LoadFromFile(result[0]); 
                 picBox.Source = imageModel.CurrentBitmap;
             }
         }
@@ -134,7 +136,7 @@ namespace Laba4
         // Поворот изображения против часовой стрелки
         private void InkRotateLeft_Click(object? sender, RoutedEventArgs e)
         {
-            imageModel.RotateLeft90();
+            imageModel.CurrentBitmap = RotatingImage.RotateImageLeft90(imageModel.CurrentBitmap);
             
             picBox.Source = imageModel.CurrentBitmap;
         }
@@ -143,7 +145,7 @@ namespace Laba4
         // Поворот изображения по часовой стрелке
         private void InkRotateRight_Click(object? sender, RoutedEventArgs e)
         {
-            imageModel.RotateRight90();
+            imageModel.CurrentBitmap = RotatingImage.RotateImageRight90(imageModel.CurrentBitmap);
 
             picBox.Source = imageModel.CurrentBitmap;
         }
@@ -152,7 +154,7 @@ namespace Laba4
         // Изменение яркости
         private void BrightnessSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
         {
-            imageModel.ApplyFilters(BrightnessSlider.Value, ContrastSlider.Value);
+            imageModel.CurrentBitmap = ApplyingFiltersToImage.ApplyFilters(imageModel.CurrentBitmapCopy, BrightnessSlider.Value, ContrastSlider.Value);
             picBox.Source = imageModel.CurrentBitmap;
 
         }
@@ -161,8 +163,9 @@ namespace Laba4
         // Изменение контрастности
         private void ContrastSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
         {
-            imageModel.ApplyFilters(BrightnessSlider.Value, ContrastSlider.Value);
+            imageModel.CurrentBitmap = ApplyingFiltersToImage.ApplyFilters(imageModel.CurrentBitmapCopy, BrightnessSlider.Value, ContrastSlider.Value);
             picBox.Source = imageModel.CurrentBitmap;
+
 
         }
 
@@ -185,9 +188,9 @@ namespace Laba4
         // Обрезка изображения
         private void InkCrop_Click(object? sender, RoutedEventArgs e)
         {
-            
+
             // Сохраним обрезанное изображение как текущее
-            imageModel.CropImage(crpX, crpY, rectW, rectH);            
+            imageModel.CurrentBitmap = CroppingImage.CropImage(imageModel.CurrentBitmap, crpX, crpY, rectW, rectH);
             // Обновим изображение picBox
             picBox.Source = imageModel.CurrentBitmap;
 
@@ -238,7 +241,9 @@ namespace Laba4
                         if (!string.IsNullOrWhiteSpace(currentText))
                         {
                             // Добавляем текст на изображение
-                            picBox.Source = imageModel.AddTextToImage(currentText, currentTextPosition);
+
+
+                            picBox.Source = AddingTextToImage.AddTextToImage(imageModel.CurrentBitmap, currentText, currentTextPosition);
                         }
 
                         // Удаляем TextBox на следующем фрейме отрисовки
